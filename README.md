@@ -115,6 +115,5 @@ Rscript -e "rmarkdown::render('notebooks/GO_Enrichment_on_Demo_Synthetic_scRNA-s
   - R/Seurat ワークフローの再現性デモ
   - 教育・コード共有
   - 機密データを含まない GitHub 公開
-
 実データを解析する場合は、`data/sim_counts.rds` を実際の scRNA-seq データに差し替えてください。
 ---
