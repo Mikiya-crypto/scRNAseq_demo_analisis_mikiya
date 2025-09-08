@@ -1,0 +1,172 @@
+---
+title: "scRNA-seq Analysis Notebook (Demo-ready)"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, message=FALSE, warning=FALSE, fig.path = "figs/")
+suppressPackageStartupMessages({
+  library(Seurat); library(SeuratObject); library(Matrix); library(dplyr); library(ggplot2); library(patchwork)
+})
+set.seed(123)
+
+# Paths
+data_dir_up    <- normalizePath(file.path("..","data"), mustWork = FALSE)
+data_dir_here  <- normalizePath(file.path("data"), mustWork = FALSE)
+results_dir    <- normalizePath(file.path("..","results"), mustWork = FALSE)
+if (!dir.exists(results_dir)) dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
+if (!dir.exists(data_dir_up)) dir.create(data_dir_up, recursive = TRUE, showWarnings = FALSE)
+
+counts_up   <- file.path(data_dir_up, "sim_counts.rds")
+counts_here <- file.path(data_dir_here, "sim_counts.rds")
+
+# Ensure synthetic counts exist
+has_up <- file.exists(counts_up)
+has_here <- file.exists(counts_here)
+
+if (!has_up && !has_here) {
+  message("Synthetic counts not found; generating via R/01_generate_synthetic_data.R ...")
+  old <- getwd()
+  on.exit(setwd(old), add=TRUE)
+  setwd("..")  # run generator from repo root so it writes into ./data
+  source(file.path("R","01_generate_synthetic_data.R"), local=TRUE)
+  setwd(old)
+  has_up <- file.exists(counts_up)
+  has_here <- file.exists(counts_here)
+}
+
+# If generated under notebooks/data, promote to ../data for consistency
+if (!has_up && has_here) {
+  dir.create(data_dir_up, showWarnings = FALSE, recursive = TRUE)
+  file.copy(counts_here, counts_up, overwrite = TRUE)
+  has_up <- file.exists(counts_up)
+}
+
+stopifnot(has_up)
+counts <- readRDS(counts_up)
+stopifnot(inherits(counts, "dgCMatrix"))
+
+# Build basic Seurat object
+seu <- CreateSeuratObject(counts = counts, project = "synthetic", min.cells = 3, min.features = 200)
+seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern = "^MT-")
+seu <- subset(seu, subset = nFeature_RNA > 200 & nFeature_RNA < 4000 & percent.mt < 20)
+
+# Minimal processing for downstream expectations
+if (is.null(seu@reductions$umap)) {
+  seu <- NormalizeData(seu)
+  seu <- FindVariableFeatures(seu, selection.method = "vst", nfeatures = 2000)
+  seu <- ScaleData(seu, features = VariableFeatures(seu))
+  seu <- RunPCA(seu, features = VariableFeatures(seu), npcs = 30)
+  seu <- RunUMAP(seu, dims = 1:20)
+  seu <- FindNeighbors(seu, dims = 1:20)
+  seu <- FindClusters(seu, resolution = 0.5)
+}
+
+# Compatibility aliases
+if (!exists("seurat.integrated")) seurat.integrated <- seu
+if (!exists("obj")) obj <- seu
+
+# Helper for saving figures
+save_fig <- function(p, name, width=6, height=5, dpi=150) {
+  ggsave(filename = file.path(results_dir, name), plot = p, width = width, height = height, dpi = dpi)
+}
+
+if (!exists("genes")) {
+  genes <- head(VariableFeatures(seu), 6)
+}
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, message=FALSE, warning=FALSE, fig.path = "figs/")
+suppressPackageStartupMessages({
+  library(Seurat); library(SeuratObject); library(Matrix); library(dplyr); library(ggplot2); library(patchwork)
+})
+set.seed(123)
+
+# Paths
+data_dir_up    <- normalizePath(file.path("..","data"), mustWork = FALSE)
+data_dir_here  <- normalizePath(file.path("data"), mustWork = FALSE)
+results_dir    <- normalizePath(file.path("..","results"), mustWork = FALSE)
+if (!dir.exists(results_dir)) dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
+if (!dir.exists(data_dir_up)) dir.create(data_dir_up, recursive = TRUE, showWarnings = FALSE)
+
+counts_up   <- file.path(data_dir_up, "sim_counts.rds")
+counts_here <- file.path(data_dir_here, "sim_counts.rds")
+
+# Ensure synthetic counts exist
+has_up <- file.exists(counts_up)
+has_here <- file.exists(counts_here)
+
+if (!has_up && !has_here) {
+  message("Synthetic counts not found; generating via R/01_generate_synthetic_data.R ...")
+  old <- getwd()
+  on.exit(setwd(old), add=TRUE)
+  setwd("..")  # run generator from repo root so it writes into ./data
+  source(file.path("R","01_generate_synthetic_data.R"), local=TRUE)
+  setwd(old)
+  has_up <- file.exists(counts_up)
+  has_here <- file.exists(counts_here)
+}
+
+# If generated under notebooks/data, promote to ../data for consistency
+if (!has_up && has_here) {
+  dir.create(data_dir_up, showWarnings = FALSE, recursive = TRUE)
+  file.copy(counts_here, counts_up, overwrite = TRUE)
+  has_up <- file.exists(counts_up)
+}
+
+stopifnot(has_up)
+counts <- readRDS(counts_up)
+stopifnot(inherits(counts, "dgCMatrix"))
+
+# Build basic Seurat object
+seu <- CreateSeuratObject(counts = counts, project = "synthetic", min.cells = 3, min.features = 200)
+seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern = "^MT-")
+seu <- subset(seu, subset = nFeature_RNA > 200 & nFeature_RNA < 4000 & percent.mt < 20)
+
+# Minimal processing for downstream expectations
+if (is.null(seu@reductions$umap)) {
+  seu <- NormalizeData(seu)
+  seu <- FindVariableFeatures(seu, selection.method = "vst", nfeatures = 2000)
+  seu <- ScaleData(seu, features = VariableFeatures(seu))
+  seu <- RunPCA(seu, features = VariableFeatures(seu), npcs = 30)
+  seu <- RunUMAP(seu, dims = 1:20)
+  seu <- FindNeighbors(seu, dims = 1:20)
+  seu <- FindClusters(seu, resolution = 0.5)
+}
+
+# Compatibility aliases
+if (!exists("seurat.integrated")) seurat.integrated <- seu
+if (!exists("obj")) obj <- seu
+
+# Helper for saving figures
+save_fig <- function(p, name, width=6, height=5, dpi=150) {
+  ggsave(filename = file.path(results_dir, name), plot = p, width = width, height = height, dpi = dpi)
+}
+
+if (!exists("genes")) {
+  genes <- head(VariableFeatures(seu), 6)
+}
+```
+
+```{r load-data}
+# Load demo Seurat object (generated by R/02_run_pipeline.R)
+seu <- readRDS("results/seurat_object_small.rds")
+seu
+```
+```{r dimplot}
+DimPlot(seu, reduction = "umap", group.by = "seurat_clusters") +
+  ggtitle("UMAP by cluster")
+```
+
+```{r featureplot}
+# Example: visualize a few marker genes if available in demo data
+FeaturePlot(seu, features = head(VariableFeatures(seu), 3))
+```
+
+```{r markers}
+markers <- FindAllMarkers(seu, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+head(markers)
+```

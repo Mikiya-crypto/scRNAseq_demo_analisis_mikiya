@@ -1,0 +1,104 @@
+---
+title: "Expression Distribution Analysis on Demo Synthetic scRNA-seq"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, message=FALSE, warning=FALSE, fig.path = "figs/dist_")
+suppressPackageStartupMessages({
+  library(Seurat); library(SeuratObject); library(Matrix); library(dplyr); library(ggplot2); library(patchwork)
+})
+set.seed(123)
+
+data_dir_up    <- normalizePath(file.path("..","data"), mustWork = FALSE)
+data_dir_here  <- normalizePath(file.path("data"), mustWork = FALSE)
+results_dir    <- normalizePath(file.path("..","results"), mustWork = FALSE)
+if (!dir.exists(results_dir)) dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
+if (!dir.exists(data_dir_up)) dir.create(data_dir_up, recursive = TRUE, showWarnings = FALSE)
+
+counts_up   <- file.path(data_dir_up, "sim_counts.rds")
+counts_here <- file.path(data_dir_here, "sim_counts.rds")
+
+has_up <- file.exists(counts_up); has_here <- file.exists(counts_here)
+if (!has_up && !has_here) {
+  message("Synthetic counts not found; generating via R/01_generate_synthetic_data.R ...")
+  old <- getwd(); on.exit(setwd(old), add=TRUE); setwd("..")
+  source(file.path("R","01_generate_synthetic_data.R"), local=TRUE)
+  setwd(old)
+  has_up <- file.exists(counts_up); has_here <- file.exists(counts_here)
+}
+if (!has_up && has_here) {
+  file.copy(counts_here, counts_up, overwrite = TRUE); has_up <- TRUE
+}
+stopifnot(has_up)
+counts <- readRDS(counts_up)
+stopifnot(inherits(counts, "dgCMatrix"))
+
+seu <- CreateSeuratObject(counts = counts, project = "synthetic", min.cells = 3, min.features = 200)
+seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern = "^MT-")
+seu <- subset(seu, subset = nFeature_RNA > 200 & nFeature_RNA < 4000 & percent.mt < 20)
+
+seu <- NormalizeData(seu)
+seu <- FindVariableFeatures(seu, selection.method = "vst", nfeatures = 2000)
+seu <- ScaleData(seu, features = VariableFeatures(seu))
+seu <- RunPCA(seu, features = VariableFeatures(seu), npcs = 30)
+seu <- RunUMAP(seu, dims = 1:20)
+seu <- FindNeighbors(seu, dims = 1:20)
+seu <- FindClusters(seu, resolution = 0.5)
+
+if (!exists("seurat.integrated")) seurat.integrated <- seu
+if (!exists("obj")) obj <- seu
+
+save_fig <- function(p, name, width=7, height=5, dpi=150) {
+  ggsave(filename = file.path(results_dir, name), plot = p, width = width, height = height, dpi = dpi)
+}
+```
+
+## QC distributions
+
+```{r qc-dists, fig.width=7, fig.height=4}
+p1 <- VlnPlot(seu, features = c("nFeature_RNA","nCount_RNA","percent.mt"), pt.size = 0.1, ncol = 3)
+p1
+save_fig(p1, "dist_violin_qc.png", width=10, height=4)
+```
+
+```{r qc-hist, fig.width=7, fig.height=4}
+df <- seu@meta.data %>% dplyr::select(nFeature_RNA, nCount_RNA, percent.mt, seurat_clusters)
+p2 <- ggplot(df, aes(x=nFeature_RNA, fill=seurat_clusters)) + geom_histogram(bins=50, alpha=0.6, position="identity") +
+      theme_minimal() + labs(title="nFeature_RNA distribution", x="Features per cell")
+p3 <- ggplot(df, aes(x=nCount_RNA, fill=seurat_clusters)) + geom_histogram(bins=50, alpha=0.6, position="identity") +
+      theme_minimal() + labs(title="nCount_RNA distribution", x="UMIs per cell")
+p2 / p3
+save_fig(p2 / p3, "dist_hist_qc.png", width=8, height=6)
+```
+
+## Gene-level expression distributions
+
+```{r gene-list}
+# Use variable features as default; you may replace with your genes of interest
+genes <- head(VariableFeatures(seu), 8)
+genes
+```
+
+```{r ridge-violin, fig.width=7, fig.height=4}
+p4 <- RidgePlot(seu, features = genes, ncol = 4)
+p5 <- VlnPlot(seu, features = genes, ncol = 4, pt.size = 0.1)
+p4
+save_fig(p4, "dist_ridge_features.png", width=12, height=8)
+p5
+save_fig(p5, "dist_violin_features.png", width=12, height=8)
+```
+
+```{r umap-feature, fig.width=7, fig.height=4}
+p6 <- FeaturePlot(seu, features = genes, ncol = 4)
+p6
+save_fig(p6, "dist_umap_features.png", width=12, height=8)
+```
+
+```{r scatter, fig.width=7, fig.height=4}
+# Explore relationships between counts and features
+p7 <- FeatureScatter(seu, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+p8 <- FeatureScatter(seu, feature1 = "nCount_RNA", feature2 = genes[1])
+p7 | p8
+save_fig(p7 | p8, "dist_scatter_qc_gene.png", width=10, height=4)
+```
