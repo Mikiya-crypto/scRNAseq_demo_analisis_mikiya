@@ -86,26 +86,28 @@ Rscript -e "rmarkdown::render('notebooks/GO_Enrichment_on_Demo_Synthetic_scRNA-s
 ---
 
 ## サンプル結果
+一部抜粋
 - クラスター
-![alt text](image-3.png)
+<img width="700" height="432" alt="image" src="https://github.com/user-attachments/assets/54f948bb-5bc4-4d14-9e01-9555b70374fc" />
 
 - 検出遺伝子数・カウント数・ミトコンドリア割合の分布
-![alt text](image.png)
+<img width="672" height="384" alt="image" src="https://github.com/user-attachments/assets/8606c84c-f06a-495f-83fe-1e056f166d46" />
 
 - 各クラスターのRNAカウント分布:
-![alt text](image-1.png)
+<img width="672" height="384" alt="image" src="https://github.com/user-attachments/assets/4910af5f-62eb-4684-a810-9e3c0f39f616" />
 
 - 個別遺伝子の発現量:
-![alt text](image-2.png)
+<img width="672" height="384" alt="image" src="https://github.com/user-attachments/assets/ab77de26-5d36-4dc4-a1dc-9fd479ccce13" />
 
 - 各遺伝子の発現とクラスターの関係性
-![alt text](image-4.png)
+<img width="700" height="432" alt="image" src="https://github.com/user-attachments/assets/75645ce0-9118-4ec5-8e45-ed1ddfad2bd3" />
 
 -各クラスターにおける個別遺伝子の発現分布
-![alt text](dist_ridge_features.png)
+<img width="1800" height="1200" alt="image" src="https://github.com/user-attachments/assets/354e7875-ded2-4841-b869-2ff69836fab4" />
 
 - GO解析
-![alt text](go_ora_bar_cluster_0.png)
+<img width="1500" height="900" alt="image" src="https://github.com/user-attachments/assets/76c57c4a-e7c6-4538-8d6c-d49634183073" />
+
 
 ---
 ## 制限事項
